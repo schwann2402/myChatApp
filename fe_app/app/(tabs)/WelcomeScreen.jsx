@@ -58,7 +58,7 @@ import { useRouter } from "expo-router"
                 <Text style={styles.buttonText}>Sign In</Text>
               </TouchableOpacity>
   
-              <TouchableOpacity style={[styles.button, styles.secondaryButton]}>
+              <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => router.push("/RegisterScreen")}>
                 <Text style={[styles.buttonText, styles.secondaryButtonText]}>Create Account</Text>
               </TouchableOpacity>
   

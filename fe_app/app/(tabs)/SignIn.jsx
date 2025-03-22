@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, SafeAreaView } from 'react-native'
 import React from 'react'
-import { TextInput, Button, HelperText } from 'react-native-paper';
+import { TextInput, Button, HelperText, Modal, Portal, Provider as PaperProvider } from 'react-native-paper';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
+import { useRouter } from 'expo-router';
 
 const SignInSchema = Yup.object().shape({
   email: Yup.string()
@@ -14,15 +15,71 @@ const SignInSchema = Yup.object().shape({
 });
 
 const SignIn = () => {
+  const [email, setEmail] = React.useState('');
+  const [emailError, setEmailError] = React.useState('');
+  const [modalVisible, setModalVisible] = React.useState(false);
+  
+  const validateEmail = (text) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!text) {
+      setEmailError('Email is required');
+      return false;
+    } else if (!emailRegex.test(text)) {
+      setEmailError('Please enter a valid email address');
+      return false;
+    } else {
+      setEmailError('');
+      return true;
+    }
+  };
+  
+  const handleResetPassword = () => {
+    if (validateEmail(email)) {
+      console.log('Reset password for:', email);
+      setModalVisible(false);
+    }
+  };
+  
   const handleSignIn = (values) => {
     console.log('Sign in values:', values);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.text}>Sign In</Text>
-
-      <Formik
+    <PaperProvider>
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.text}>Sign In</Text>
+        <Portal>
+          <Modal
+            visible={modalVisible}
+            onDismiss={() => setModalVisible(false)}
+            contentContainerStyle={styles.modalContent}
+          >
+            <Text>Forgot your password?</Text>
+            <TextInput 
+              label="Email"
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                validateEmail(text);
+              }}
+              mode="outlined"
+              style={styles.input}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={!!emailError}
+            />
+            {emailError ? <HelperText type="error">{emailError}</HelperText> : null}
+            <Button
+              mode="contained"
+              onPress={handleResetPassword}
+              style={styles.button}
+              disabled={!email || !!emailError}
+            >
+              Reset Password
+            </Button>
+          </Modal>
+        </Portal>
+        <Formik
         initialValues={{ email: '', password: '' }}
         validationSchema={SignInSchema}
         onSubmit={handleSignIn}
@@ -71,6 +128,9 @@ const SignIn = () => {
 
             <Button
               mode="text"
+              onPress={() => {
+                setModalVisible(true);
+              }}
               style={styles.forgotButton}
             >
               Forgot password?
@@ -79,6 +139,7 @@ const SignIn = () => {
         )}
       </Formik>
     </SafeAreaView>
+    </PaperProvider>
   )
 }
 
@@ -117,5 +178,12 @@ const styles = StyleSheet.create({
   },
   forgotButton: {
     marginTop: 10,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    margin: 20,
+    borderRadius: 20,
+    alignItems: 'center',
   }
 })
