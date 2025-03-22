@@ -1,0 +1,16 @@
+# Node.js (React Native)
+app/node_modules/
+app/.expo/
+app/.vscode/
+
+# Python (Django)
+api/__pycache__/
+api/db.sqlite3
+api/.venv/
+api/.migrations/
+
+# General
+.env
+.DS_Store
+.idea/
+.vscode/
