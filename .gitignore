@@ -1,7 +1,7 @@
 # Node.js (React Native)
-app/node_modules/
-app/.expo/
-app/.vscode/
+fe_app/node_modules/
+fe_app/.expo/
+fe_app/.vscode/
 
 # Python (Django)
 api/__pycache__/
