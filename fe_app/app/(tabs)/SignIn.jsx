@@ -4,6 +4,7 @@ import { TextInput, Button, HelperText, Modal, Portal, Provider as PaperProvider
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { useRouter } from 'expo-router';
+import api from '../../api'
 
 const SignInSchema = Yup.object().shape({
   email: Yup.string()
@@ -41,7 +42,13 @@ const SignIn = () => {
   };
   
   const handleSignIn = (values) => {
-    console.log('Sign in values:', values);
+    api.post('/chat/signin/', values)
+      .then(response => {
+        console.log('Sign in response:', response);
+      })
+      .catch(error => {
+        console.error('Sign in error:', error);
+      });
   };
 
   return (
@@ -80,7 +87,7 @@ const SignIn = () => {
           </Modal>
         </Portal>
         <Formik
-        initialValues={{ email: '', password: '' }}
+        initialValues={{ username: '', password: '' }}
         validationSchema={SignInSchema}
         onSubmit={handleSignIn}
       >
@@ -88,18 +95,18 @@ const SignIn = () => {
           <View style={styles.formContainer}>
             <View style={styles.inputContainer}>
               <TextInput
-                label="Email"
-                value={values.email}
-                onChangeText={handleChange('email')}
-                onBlur={handleBlur('email')}
+                label="Username"
+                value={values.username}
+                onChangeText={handleChange('username')}
+                onBlur={handleBlur('username')}
                 mode="outlined"
                 style={styles.input}
-                error={touched.email && errors.email}
+                error={touched.username && errors.username}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
-              {touched.email && errors.email && (
-                <HelperText type="error">{errors.email}</HelperText>
+              {touched.username && errors.username && (
+                <HelperText type="error">{errors.username}</HelperText>
               )}
 
               <TextInput
