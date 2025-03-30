@@ -4,10 +4,17 @@ import * as Yup from 'yup'
 import { Formik } from 'formik'
 import { TextInput, HelperText, Button, Text, Modal, Portal, Provider as PaperProvider } from 'react-native-paper'
 import { Avatar } from 'react-native-paper';
+import api from '@/api'
+import utils from '@/utils'
+import useGlobal from '@/global';
 
 const RegisterSchema = Yup.object().shape({
-  name: Yup.string()
-    .required('Name is required'),
+  username: Yup.string()
+    .required('Username is required'),
+  first_name: Yup.string()
+    .required('First name is required'),
+  last_name: Yup.string()
+    .required('Last name is required'),
   email: Yup.string()
     .email('Invalid email address')
     .required('Email is required'),
@@ -37,6 +44,7 @@ const avatars = [
 const RegisterScreen = () => {
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(null);
+  const login = useGlobal(state => state.login);
   
   const selectAvatar = (avatar, setFieldValue) => {
     setSelectedAvatar(avatar);
@@ -44,13 +52,21 @@ const RegisterScreen = () => {
     setAvatarModalVisible(false);
   };
   const handleRegister = (values) => {
-    console.log('Register values:', values);
+    console.log('Register values:', values) 
+    api.post('/chat/signup/', values) 
+      .then(response => {
+        utils.log('Register response:', response);
+        login(response.data);
+      })
+      .catch(error => {
+        console.error('Register error:', error);
+      });
   };
   
   return (
     <PaperProvider>
       <Formik 
-        initialValues={{ name: '', email: '', password: '', confirmPassword: '', avatar: '' }} 
+        initialValues={{ username: '', first_name: '', last_name: '', email: '', password: '', confirmPassword: '', avatar: '' }} 
         validationSchema={RegisterSchema} 
         onSubmit={handleRegister}
       >
@@ -85,18 +101,43 @@ const RegisterScreen = () => {
               )}
               
               <TextInput
-                label="Name"
-                value={values.name}
-                onChangeText={handleChange('name')}
-                onBlur={handleBlur('name')}
+                label="Username"
+                value={values.username}
+                onChangeText={handleChange('username')}
+                onBlur={handleBlur('username')}
                 mode="outlined"
                 style={styles.input}
-                error={touched.name && errors.name}
+                error={touched.username && errors.username}
+                autoCapitalize='none'
               />
-              {touched.name && errors.name && (
-                <HelperText type="error">{errors.name}</HelperText>
+              {touched.username && errors.username && (
+                <HelperText type="error">{errors.username}</HelperText>
               )}    
               
+              <TextInput 
+              label="First Name"
+              value={values.first_name}
+              onChangeText={handleChange('first_name')}
+              onBlur={handleBlur('first_name')}
+              mode="outlined"
+              style={styles.input}
+              error={touched.first_name && errors.first_name}
+              />
+              {touched.first_name && errors.first_name && (
+                <HelperText type="error">{errors.first_name}</HelperText>
+              )}
+              <TextInput 
+              label="Last Name"
+              value={values.last_name}
+              onChangeText={handleChange('last_name')}
+              onBlur={handleBlur('last_name')}
+              mode="outlined"
+              style={styles.input}
+              error={touched.last_name && errors.last_name}
+              />
+              {touched.last_name && errors.last_name && (
+                <HelperText type="error">{errors.last_name}</HelperText>
+              )}
               <TextInput
                 label="Email"
                 value={values.email}

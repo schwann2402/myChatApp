@@ -14,6 +14,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+    initialRouteName='Profile'
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
@@ -42,10 +43,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="SignIn"
+        name="Profile"
         options={{
-         title: 'Sign In',
-         tabBarIcon: ({ color }) => <MaterialIcons name="login" size={28} color={color} />,
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <MaterialIcons name="person" size={28} color={color} />,
         }}
       />
     </Tabs>

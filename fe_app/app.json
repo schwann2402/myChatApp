@@ -32,7 +32,11 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      ["expo-secure-store", {
+        "configureAndroidBackup": true,
+        "faceIDpermission": "Allow ChatWave to access your face ID"
+      }]
     ],
     "experiments": {
       "typedRoutes": true

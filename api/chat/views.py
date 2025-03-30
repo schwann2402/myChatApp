@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserSerializer
+from .serializers import UserSerializer, SignUpSeralizer
 from .models import User
 
 def get_auth_for_user(user):
@@ -36,3 +36,16 @@ class SignInView(APIView):
         user_data = get_auth_for_user(user)
 
         return Response(status=200, data=user_data)
+
+class SignUpView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        new_user = SignUpSeralizer(data=request.data)
+        new_user.is_valid(raise_exception=True)
+        user = new_user.save()
+
+
+        user_data = get_auth_for_user(user)
+
+        return Response(user_data)

@@ -3,36 +3,24 @@ import React from 'react'
 import { TextInput, Button, HelperText, Modal, Portal, Provider as PaperProvider } from 'react-native-paper';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
+import api from '@/api';
+import utils from '@/utils'
+import useGlobal from '@/global';
 import { useRouter } from 'expo-router';
-import api from '../../api'
 
 const SignInSchema = Yup.object().shape({
-  email: Yup.string()
-    .email('Invalid email address')
-    .required('Email is required'),
+  username: Yup.string()
+    .required('Username is required'),
   password: Yup.string()
     .min(6, 'Password must be at least 6 characters')
     .required('Password is required'),
 });
 
 const SignIn = () => {
-  const [email, setEmail] = React.useState('');
-  const [emailError, setEmailError] = React.useState('');
+  const [username, setUsername] = React.useState('');
   const [modalVisible, setModalVisible] = React.useState(false);
-  
-  const validateEmail = (text) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!text) {
-      setEmailError('Email is required');
-      return false;
-    } else if (!emailRegex.test(text)) {
-      setEmailError('Please enter a valid email address');
-      return false;
-    } else {
-      setEmailError('');
-      return true;
-    }
-  };
+  const login = useGlobal(state => state.login);
+  const router = useRouter();
   
   const handleResetPassword = () => {
     if (validateEmail(email)) {
@@ -42,9 +30,12 @@ const SignIn = () => {
   };
   
   const handleSignIn = (values) => {
+    utils.log('Sign in values:', values)
     api.post('/chat/signin/', values)
       .then(response => {
-        console.log('Sign in response:', response);
+        utils.log('Sign in response:', response);
+        login(response.data);
+        router.replace('/(tabs)/Profile');
       })
       .catch(error => {
         console.error('Sign in error:', error);
@@ -63,24 +54,20 @@ const SignIn = () => {
           >
             <Text>Forgot your password?</Text>
             <TextInput 
-              label="Email"
-              value={email}
+              label="Username"
+              value={username}
               onChangeText={(text) => {
-                setEmail(text);
-                validateEmail(text);
+                setUsername(text);
               }}
               mode="outlined"
               style={styles.input}
               keyboardType="email-address"
               autoCapitalize="none"
-              error={!!emailError}
             />
-            {emailError ? <HelperText type="error">{emailError}</HelperText> : null}
             <Button
               mode="contained"
               onPress={handleResetPassword}
               style={styles.button}
-              disabled={!email || !!emailError}
             >
               Reset Password
             </Button>
@@ -102,7 +89,6 @@ const SignIn = () => {
                 mode="outlined"
                 style={styles.input}
                 error={touched.username && errors.username}
-                keyboardType="email-address"
                 autoCapitalize="none"
               />
               {touched.username && errors.username && (

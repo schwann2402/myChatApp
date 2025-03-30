@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-)s@+0%_q=ceqv(+e30b(=e@#zk_8$=shd^m(ce&(j!j58pw*i2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '10.0.2.2']
 
 AUTH_USER_MODEL = 'chat.User'
 
