@@ -20,6 +20,7 @@ const SignIn = () => {
   const [username, setUsername] = React.useState('');
   const [modalVisible, setModalVisible] = React.useState(false);
   const login = useGlobal(state => state.login);
+  const initialized = useGlobal(state => state.initialized);
   const router = useRouter();
   
   const handleResetPassword = () => {
@@ -30,12 +31,18 @@ const SignIn = () => {
   };
   
   const handleSignIn = (values) => {
-    utils.log('Sign in values:', values)
     api.post('/chat/signin/', values)
       .then(response => {
-        utils.log('Sign in response:', response);
-        login(response.data);
-        router.replace('/(tabs)/Profile');
+        const tokens = {
+          access: response.data.access,
+          refresh: response.data.refresh
+        }
+        const credentials = {
+          username: values.username,
+          password: values.password
+        }
+        login(credentials, response.data.user, tokens);
+        router.replace('/(tabs)/Home');
       })
       .catch(error => {
         console.error('Sign in error:', error);

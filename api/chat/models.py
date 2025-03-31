@@ -13,4 +13,3 @@ def upload_thumbnail(instance, filename):
 
 class User(AbstractUser):
     thumbnail = models.ImageField(upload_to=upload_thumbnail, null=True, blank=True)
-    avatar = models.JSONField(null=True, blank=True)

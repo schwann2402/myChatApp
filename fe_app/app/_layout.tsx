@@ -13,7 +13,9 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const initialized = useGlobal(state => state.initialized);
   const authenticated = useGlobal(state => state.authenticated);
+  const init = useGlobal(state => state.init);
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
@@ -26,6 +28,10 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
+  useEffect(() => {
+    init();
+  }, []);
+
   if (!loaded) {
     return null;
   }
@@ -35,7 +41,8 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
-        {authenticated ? (
+        {initialized ? (<Stack.Screen name="Home" options={{ headerShown: false }} />) : 
+          authenticated ? (
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         ) : (
           <Stack.Screen name="SignIn" options={{ headerShown: false }} />
