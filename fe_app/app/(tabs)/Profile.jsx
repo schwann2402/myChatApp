@@ -26,7 +26,8 @@ const ProfileLogout = () => {
 };
 
 const ProfileImage = () => {
-  const [image, setImage] = useState(null);
+  const uploadThumbnail = useGlobal(state => state.uploadThumbnail);
+  const user = useGlobal(state => state.user);
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -34,12 +35,12 @@ const ProfileImage = () => {
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
-      base64: true
+      base64: true,
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
-      utils.log(result)
+      const imageData = result.assets[0];
+      uploadThumbnail(imageData);
     }
   }
 
@@ -47,7 +48,7 @@ const ProfileImage = () => {
     <View style={styles.avatarContainer}>
       <Avatar.Image 
         size={120} 
-        source={image ? { uri: image } : require('@/assets/images/profile.png')} 
+        source={utils.thumbnail(user?.thumbnail)}
         style={styles.avatar}
       />
       <TouchableOpacity onPress={pickImage} style={styles.editIconContainer}>
@@ -59,12 +60,17 @@ const ProfileImage = () => {
 
 const Profile = () => {
   const user = useGlobal(state => state.user);
-  if (!user || !user.user) {
+  utils.log('Profile user:', user);
+  
+  // Check if user exists
+  if (!user) {
     return null;
   }
-  const { name = null, username = null } = user.user
-  utils.log('Profile user:', user);
-
+  
+  // Handle both possible structures: user.user or direct user properties
+  const userData = user.user || user;
+  const { name, username } = userData;
+  
   if (!name || !username) {
     return null;
   }

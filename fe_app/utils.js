@@ -1,3 +1,6 @@
+import ProfilePic from '@/assets/images/profile.png'
+import { address } from './api';
+
 function log(...args) { 
     for (let i = 0; i < args.length; i++) {
         let arg = args[i];
@@ -8,4 +11,13 @@ function log(...args) {
     }
 }
 
-export default {log}
+function thumbnail(url) {
+    if (!url) {
+        return ProfilePic
+    }
+    return {
+        uri: 'http://' + address + url
+    }
+}
+
+export default {log, thumbnail}
