@@ -3,8 +3,10 @@ from channels.generic.websocket import WebsocketConsumer
 import json
 import base64
 from .serializers import UserSerializer
-
 from django.core.files.base import ContentFile
+from io import BytesIO
+from PIL import Image as PILImage
+import os
 
 class ChatConsumer(WebsocketConsumer):
     
@@ -44,16 +46,62 @@ class ChatConsumer(WebsocketConsumer):
     def receive_thumbnail(self, data):
         user = self.scope['user']
 
-        #convert base64 to image
-        base64_image = data.get('base64')
-        image = ContentFile(base64_image)
-        #Update user thumbnail
-        filename = data.get('filename')
-        user.thumbnail.save(filename, image, save=True)
-        #Serialize user data
-        serialized = UserSerializer(user)
-
-        self.send_group(self.username, 'thumbnail', serialized.data)
+        try:
+            base64_image = data.get('base64')
+            
+            if ',' in base64_image:
+                base64_image = base64_image.split(',')[1]
+                
+            image_data = base64.b64decode(base64_image)
+            
+            buffer = BytesIO(image_data)
+            image = PILImage.open(buffer)
+            
+            if image.mode == 'RGBA':
+                image = image.convert('RGB')
+                
+            max_size = (400, 400)
+            image.thumbnail(max_size, PILImage.LANCZOS)
+            
+            output_buffer = BytesIO()
+            image.save(output_buffer, format='JPEG', quality=100)
+            output_buffer.seek(0)
+            
+            encoded_image = base64.b64encode(output_buffer.getvalue()).decode('utf-8')
+            
+            output_buffer.seek(0)
+            
+            filename = data.get('filename')
+            if not filename.lower().endswith('.jpg'):
+                filename = os.path.splitext(filename)[0] + '.jpg'
+                
+            user.thumbnail.save(filename, output_buffer, save=True)
+            
+            serialized = UserSerializer(user)
+            user_data = serialized.data
+            
+            user_data['thumbnail_base64'] = f"data:image/jpeg;base64,{encoded_image}"
+            
+            print("Sending user data with base64 thumbnail")
+            
+            # Add detailed logging
+            print("User data structure:", user_data)
+            print("Thumbnail base64 exists:", "thumbnail_base64" in user_data)
+            
+            # Send the data back to the client directly
+            self.send(text_data=json.dumps({
+                'source': 'thumbnail',
+                'user': user_data
+            }))
+            
+            print(f"Image processed and saved successfully: {user.thumbnail.url}")
+            
+        except Exception as e:
+            print(f"Error processing image: {str(e)}")
+            # Send error back to client
+            self.send(text_data=json.dumps({
+                'error': f"Error processing image: {str(e)}"
+            }))
     
     # Catch broadcast to client helpers 
     def send_group(self, group, source, data):
@@ -76,4 +124,3 @@ class ChatConsumer(WebsocketConsumer):
         data.pop('type')
         # only send the source + data
         self.send(text_data=json.dumps(data))
-            

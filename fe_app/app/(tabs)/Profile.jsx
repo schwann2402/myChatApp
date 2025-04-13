@@ -1,22 +1,20 @@
-import { StyleSheet, Text, View, Image, Button as RNButton, TouchableOpacity } from 'react-native'
-import React, { useState } from 'react'
-import useGlobal from '@/global';
-import utils from '@/utils';
-import { Avatar, Button, Icon } from 'react-native-paper';
-import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-
-
+import { StyleSheet, Text, View, SafeAreaView } from "react-native";
+import React, { useState, useEffect } from "react";
+import useGlobal from "@/global";
+import { Button } from "react-native-paper";
+import { useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
+import { address } from "@/api";
 
 const ProfileLogout = () => {
   const router = useRouter();
-  const logout = useGlobal(state => state.logout);
+  const logout = useGlobal((state) => state.logout);
   return (
     <Button
       mode="contained"
       onPress={() => {
-        logout()
-        router.replace('/SignIn')
+        logout();
+        router.replace("/WelcomeScreen");
       }}
       style={{ marginTop: 20 }}
     >
@@ -25,13 +23,28 @@ const ProfileLogout = () => {
   );
 };
 
+import UserAvatar from "@/components/UserAvatar";
+
 const ProfileImage = () => {
-  const uploadThumbnail = useGlobal(state => state.uploadThumbnail);
-  const user = useGlobal(state => state.user);
+  const uploadThumbnail = useGlobal((state) => state.uploadThumbnail);
+  const user = useGlobal((state) => state.user);
+  const [imageError, setImageError] = useState(false);
+
+  const userData = user.user || user;
+  const thumbnailPath = userData?.thumbnail;
+  const thumbnailBase64 = userData?.thumbnail_base64;
+
+  const imageUrl = thumbnailPath ? `http://${address}${thumbnailPath}` : null;
+
+  useEffect(() => {
+    if (imageUrl || thumbnailBase64) {
+      setImageError(false);
+    }
+  }, [imageUrl, thumbnailBase64]);
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
@@ -42,82 +55,84 @@ const ProfileImage = () => {
       const imageData = result.assets[0];
       uploadThumbnail(imageData);
     }
-  }
+  };
 
   return (
     <View style={styles.avatarContainer}>
-      <Avatar.Image 
-        size={120} 
-        source={utils.thumbnail(user?.thumbnail)}
-        style={styles.avatar}
+      <UserAvatar
+        thumbnailBase64={thumbnailBase64}
+        imageUrl={imageUrl}
+        imageError={imageError}
+        setImageError={setImageError}
+        onPress={pickImage}
       />
-      <TouchableOpacity onPress={pickImage} style={styles.editIconContainer}>
-        <Icon source="pencil" size={20} color="white" />
-      </TouchableOpacity>
     </View>
-  )
-}
+  );
+};
 
 const Profile = () => {
-  const user = useGlobal(state => state.user);
-  utils.log('Profile user:', user);
-  
-  // Check if user exists
+  const user = useGlobal((state) => state.user);
+  const router = useRouter();
+
   if (!user) {
     return null;
   }
-  
-  // Handle both possible structures: user.user or direct user properties
+
   const userData = user.user || user;
   const { name, username } = userData;
-  
+
   if (!name || !username) {
     return null;
   }
-  
-  return (
-    <View style={{
-        flex: 1,
-        alignItems: 'center',
-        paddingTop: 100
-    }}>
-      <ProfileImage />
-      <Text style={{ fontSize: 24, fontWeight: 'bold', marginTop: 10 }}>{name}</Text>
-      <Text style={{ fontSize: 16, marginTop: 5 }}>@{username}</Text>
-      <ProfileLogout />
-    </View>
-  )
-}
 
-export default Profile
+  const handleSettingsPress = () => {
+    console.log("Settings pressed");
+    // Navigate to settings or open settings modal
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <ProfileImage />
+        <Text style={styles.name}>{name}</Text>
+        <Text style={styles.username}>@{username}</Text>
+        <ProfileLogout />
+      </View>
+    </View>
+  );
+};
+
+export default Profile;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 50
+    backgroundColor: "#fff",
+  },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    paddingTop: 40,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginTop: 10,
+  },
+  username: {
+    fontSize: 16,
+    marginTop: 5,
+    color: "#666",
   },
   image: {
     width: 200,
     height: 200,
   },
   avatarContainer: {
-    position: 'relative',
-    marginBottom: 20
+    position: "relative",
+    marginBottom: 20,
   },
   avatar: {
-    backgroundColor: '#ccc'
+    backgroundColor: "#ccc",
   },
-  editIconContainer: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#2196F3',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center'
-  }
-})
+});

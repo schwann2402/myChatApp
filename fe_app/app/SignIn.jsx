@@ -1,51 +1,74 @@
-import { StyleSheet, Text, View, SafeAreaView } from 'react-native'
-import React from 'react'
-import { TextInput, Button, HelperText, Modal, Portal, Provider as PaperProvider } from 'react-native-paper';
-import { Formik } from 'formik';
-import * as Yup from 'yup';
-import api from '@/api';
-import utils from '@/utils'
-import useGlobal from '@/global';
-import { useRouter } from 'expo-router';
+import { StyleSheet, Text, View, SafeAreaView } from "react-native";
+import React from "react";
+import {
+  TextInput,
+  Button,
+  HelperText,
+  Modal,
+  Portal,
+  Provider as PaperProvider,
+} from "react-native-paper";
+import { Formik } from "formik";
+import * as Yup from "yup";
+import api from "@/api";
+import useGlobal from "@/global";
+import { useRouter } from "expo-router";
 
 const SignInSchema = Yup.object().shape({
-  username: Yup.string()
-    .required('Username is required'),
+  username: Yup.string().required("Username is required"),
   password: Yup.string()
-    .min(6, 'Password must be at least 6 characters')
-    .required('Password is required'),
+    .min(6, "Password must be at least 6 characters")
+    .required("Password is required"),
 });
 
 const SignIn = () => {
-  const [username, setUsername] = React.useState('');
+  const [username, setUsername] = React.useState("");
   const [modalVisible, setModalVisible] = React.useState(false);
-  const login = useGlobal(state => state.login);
-  const initialized = useGlobal(state => state.initialized);
+  const login = useGlobal((state) => state.login);
   const router = useRouter();
-  
+
   const handleResetPassword = () => {
     if (validateEmail(email)) {
-      console.log('Reset password for:', email);
       setModalVisible(false);
     }
   };
-  
+
   const handleSignIn = (values) => {
-    api.post('/chat/signin/', values)
-      .then(response => {
+    console.log("Attempting to sign in with:", values.username);
+
+    api
+      .post("/chat/signin/", values)
+      .then((response) => {
+        const userData = response.data.user || response.data;
         const tokens = {
-          access: response.data.access,
-          refresh: response.data.refresh
+          access: response.data.access || response.data.tokens?.access,
+          refresh: response.data.refresh || response.data.tokens?.refresh,
+        };
+
+        if (!tokens.access) {
+          console.error("No access token received");
+          return;
         }
+
         const credentials = {
           username: values.username,
-          password: values.password
+          password: values.password,
+        };
+
+        login(credentials, userData, tokens);
+
+        const socketConnect = useGlobal.getState().socketConnect;
+        if (socketConnect) {
+          console.log("Connecting WebSocket...");
+          socketConnect();
         }
-        login(credentials, response.data.user, tokens);
-        router.replace('/(tabs)/Home');
+
+        setTimeout(() => {
+          router.replace("/(tabs)/Profile");
+        }, 200);
       })
-      .catch(error => {
-        console.error('Sign in error:', error);
+      .catch((error) => {
+        console.error("Sign in error:", error);
       });
   };
 
@@ -60,7 +83,7 @@ const SignIn = () => {
             contentContainerStyle={styles.modalContent}
           >
             <Text>Forgot your password?</Text>
-            <TextInput 
+            <TextInput
               label="Username"
               value={username}
               onChangeText={(text) => {
@@ -81,88 +104,97 @@ const SignIn = () => {
           </Modal>
         </Portal>
         <Formik
-        initialValues={{ username: '', password: '' }}
-        validationSchema={SignInSchema}
-        onSubmit={handleSignIn}
-      >
-        {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isValid, dirty }) => (
-          <View style={styles.formContainer}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                label="Username"
-                value={values.username}
-                onChangeText={handleChange('username')}
-                onBlur={handleBlur('username')}
-                mode="outlined"
-                style={styles.input}
-                error={touched.username && errors.username}
-                autoCapitalize="none"
-              />
-              {touched.username && errors.username && (
-                <HelperText type="error">{errors.username}</HelperText>
-              )}
+          initialValues={{ username: "", password: "" }}
+          validationSchema={SignInSchema}
+          onSubmit={handleSignIn}
+        >
+          {({
+            handleChange,
+            handleBlur,
+            handleSubmit,
+            values,
+            errors,
+            touched,
+            isValid,
+            dirty,
+          }) => (
+            <View style={styles.formContainer}>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  label="Username"
+                  value={values.username}
+                  onChangeText={handleChange("username")}
+                  onBlur={handleBlur("username")}
+                  mode="outlined"
+                  style={styles.input}
+                  error={touched.username && errors.username}
+                  autoCapitalize="none"
+                />
+                {touched.username && errors.username && (
+                  <HelperText type="error">{errors.username}</HelperText>
+                )}
 
-              <TextInput
-                label="Password"
-                value={values.password}
-                onChangeText={handleChange('password')}
-                onBlur={handleBlur('password')}
-                secureTextEntry={true}
-                mode="outlined"
-                style={styles.input}
-                error={touched.password && errors.password}
-              />
-              {touched.password && errors.password && (
-                <HelperText type="error">{errors.password}</HelperText>
-              )}
+                <TextInput
+                  label="Password"
+                  value={values.password}
+                  onChangeText={handleChange("password")}
+                  onBlur={handleBlur("password")}
+                  secureTextEntry={true}
+                  mode="outlined"
+                  style={styles.input}
+                  error={touched.password && errors.password}
+                />
+                {touched.password && errors.password && (
+                  <HelperText type="error">{errors.password}</HelperText>
+                )}
+              </View>
+
+              <Button
+                disabled={!(isValid && dirty)}
+                mode="contained"
+                onPress={handleSubmit}
+                style={styles.button}
+              >
+                Sign In
+              </Button>
+
+              <Button
+                mode="text"
+                onPress={() => {
+                  setModalVisible(true);
+                }}
+                style={styles.forgotButton}
+              >
+                Forgot password?
+              </Button>
             </View>
-
-            <Button
-              disabled={!(isValid && dirty)}
-              mode="contained"
-              onPress={handleSubmit}
-              style={styles.button}
-            >
-              Sign In
-            </Button>
-
-            <Button
-              mode="text"
-              onPress={() => {
-                setModalVisible(true);
-              }}
-              style={styles.forgotButton}
-            >
-              Forgot password?
-            </Button>
-          </View>
-        )}
-      </Formik>
-    </SafeAreaView>
+          )}
+        </Formik>
+      </SafeAreaView>
     </PaperProvider>
-  )
-}
+  );
+};
 
-export default SignIn
+export default SignIn;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   text: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 20,
   },
   formContainer: {
-    width: '100%',
-    alignItems: 'center',
+    width: "100%",
+    alignItems: "center",
   },
   inputContainer: {
-    width: '100%',
-    alignItems: 'center',
+    width: "100%",
+    alignItems: "center",
     marginBottom: 10,
   },
   input: {
@@ -180,10 +212,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     padding: 20,
     margin: 20,
     borderRadius: 20,
-    alignItems: 'center',
-  }
-})
+    alignItems: "center",
+  },
+});

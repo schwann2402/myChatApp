@@ -1,10 +1,8 @@
-import { SafeAreaView, Text } from "react-native";
-import WelcomeScreen from "./WelcomeScreen";
-export default function HomeScreen() {
-  return (
+import { useEffect } from "react";
+import { useRouter, Redirect } from "expo-router";
 
-      <WelcomeScreen />
- 
-  );
+export default function IndexScreen() {
+  // This screen automatically redirects to the Profile tab
+  return <Redirect href="/(tabs)/Profile" />;
 }
 
