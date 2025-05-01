@@ -84,7 +84,12 @@ export default function TabLayout() {
           title: "Notifications",
           headerTitle: "Notifications",
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="notifications" size={28} color={color} />
+            <MaterialIcons
+              name="notifications"
+              size={28}
+              color={color}
+              onPress={() => router.push("/Notifications")}
+            />
           ),
         }}
       />
@@ -123,7 +128,7 @@ export default function TabLayout() {
           headerLeft: () => (
             <HeaderIcon
               name="inbox"
-              onPress={() => console.log("Inbox pressed")}
+              onPress={() => router.push("../Requests")}
             />
           ),
           headerRight: () => (

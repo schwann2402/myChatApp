@@ -40,9 +40,6 @@ export default function RootLayout() {
         console.error("Error initializing app:", error);
       } finally {
         setIsInitializing(false);
-        if (!authenticated) {
-          router.replace("/WelcomeScreen");
-        }
       }
     }
 
@@ -54,31 +51,33 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded && !isInitializing) {
       SplashScreen.hideAsync();
+      if (!authenticated) {
+        router.replace("/WelcomeScreen");
+      }
     }
-  }, [loaded, isInitializing, authenticated]);
+  }, [loaded, isInitializing, authenticated, router]);
 
   if (!loaded || isInitializing) {
     return null;
   }
 
+  console.log("authenticated:", authenticated);
+
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
-        {authenticated ? (
-          <Stack.Screen
-            name="(tabs)/Profile"
-            options={{
-              headerShown: false,
-            }}
-          />
-        ) : (
-          <Stack.Screen
-            name="WelcomeScreen"
-            options={{
-              headerShown: false,
-            }}
-          />
-        )}
+        <Stack.Screen
+          name="(tabs)/Profile"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="WelcomeScreen"
+          options={{
+            headerShown: false,
+          }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

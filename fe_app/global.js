@@ -29,6 +29,53 @@ function responseThumbnail(set, get, data) {
   }));
 }
 
+function responseSearch(set, get, data) {
+  utils.log("Search response received:", data);
+
+  const searchResults = data.results || data;
+
+  // Create a new user object by merging the current user with the new data
+  utils.log("Updated user with search results:", searchResults);
+
+  // Update the state with the merged user object
+  set((state) => ({
+    searchResults: searchResults,
+  }));
+}
+
+function responseRequestConnect(set, get, connection) {
+  const user = get().user;
+  // If I make the request, update search list
+  if (user.username === connection.username) {
+    const searchResults = [...get().searchResults];
+    const index = searchResults.findIndex(
+      (request) => request.username === connection.username
+    );
+    if (index !== -1) {
+      searchResults[index].status = "pending-them";
+      set((state) => ({
+        searchResults: searchResults,
+      }));
+    }
+    // If I receive the request add to requests list
+  } else {
+    return;
+  }
+}
+
+function responseRequestList(set, get, data) {
+  utils.log("Request list response received:", data);
+
+  const requests = data.data;
+
+  // Create a new user object by merging the current user with the new data
+  utils.log("Updated user with request list:", requests);
+
+  // Update the state with the merged user object
+  set((state) => ({
+    requests: requests,
+  }));
+}
 const useGlobal = create((set, get) => ({
   // initialization...
   initialized: false,
@@ -183,10 +230,11 @@ const useGlobal = create((set, get) => ({
 
   // search //
   searchResults: [],
+
   searchUsers: async (query) => {
-    console.log("Hellooo");
     if (query) {
       const socket = get().socket;
+      console.log("socket", socket);
       if (!socket) {
         return;
       }
@@ -199,6 +247,21 @@ const useGlobal = create((set, get) => ({
     } else {
       set({ searchResults: [] });
     }
+  },
+
+  // Requests
+  requests: [],
+  requestConnect: async (username) => {
+    const socket = get().socket;
+    if (!socket) {
+      return;
+    }
+    socket.send(
+      JSON.stringify({
+        source: "request.connect",
+        username: username,
+      })
+    );
   },
 
   // Socket
@@ -215,7 +278,14 @@ const useGlobal = create((set, get) => ({
     );
     socket.onopen = () => {
       utils.log("socket opened");
+
+      socket.send(
+        JSON.stringify({
+          source: "request.list",
+        })
+      );
     };
+
     socket.onmessage = (e) => {
       const data = JSON.parse(e.data);
       utils.log("Socket message received - RAW DATA:", e.data);
@@ -223,7 +293,10 @@ const useGlobal = create((set, get) => ({
       utils.log("Socket message source:", data.source);
 
       const responses = {
+        "request.list": responseRequestList,
+        "request.connect": responseRequestConnect,
         thumbnail: responseThumbnail,
+        search: responseSearch,
       };
 
       const resp = responses[data.source];

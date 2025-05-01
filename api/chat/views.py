@@ -41,6 +41,7 @@ class SignUpView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        print(request.data)
         new_user = SignUpSeralizer(data=request.data)
         new_user.is_valid(raise_exception=True)
         user = new_user.save()

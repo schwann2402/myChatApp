@@ -15,6 +15,7 @@ import { Avatar } from "react-native-paper";
 import api from "@/api";
 import utils from "@/utils";
 import useGlobal from "@/global";
+import { ProfileImage } from "./(tabs)/Profile";
 
 const RegisterSchema = Yup.object().shape({
   username: Yup.string().required("Username is required"),
@@ -29,7 +30,7 @@ const RegisterSchema = Yup.object().shape({
   confirmPassword: Yup.string()
     .required("Confirm Password is required")
     .oneOf([Yup.ref("password"), null], "Passwords do not match"),
-  avatar: Yup.string().required("Please select an avatar"),
+  //avatar: Yup.string().required("Please select an avatar"),
 });
 
 const avatars = [
@@ -49,17 +50,33 @@ const RegisterScreen = () => {
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const login = useGlobal((state) => state.login);
 
-  const handleRegister = (values) => {
-    console.log("Register values:", values);
-    api
-      .post("/chat/signup/", values)
-      .then((response) => {
-        utils.log("Register response:", response);
-        login(response.data);
-      })
-      .catch((error) => {
-        console.error("Register error:", error);
+  const handleRegister = async (values, { setFieldValue }) => {
+    try {
+      // Convert image data to base64 if it exists
+      let thumbnailData = values.thumbnail;
+      if (thumbnailData && thumbnailData.uri) {
+        const response = await fetch(thumbnailData.uri);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+          thumbnailData = reader.result;
+        };
+      }
+
+      const response = await api.post("/chat/signup/", {
+        ...values,
+        thumbnail: thumbnailData,
       });
+
+      if (response.status === 200) {
+        utils.log("Registration successful:", response.data);
+        // You might want to redirect to login or profile screen here
+      }
+    } catch (error) {
+      utils.log("Registration error:", error);
+      // Handle error
+    }
   };
 
   return (
@@ -72,6 +89,7 @@ const RegisterScreen = () => {
           email: "",
           password: "",
           confirmPassword: "",
+          thumbnail: "",
         }}
         validationSchema={RegisterSchema}
         onSubmit={handleRegister}
@@ -83,9 +101,9 @@ const RegisterScreen = () => {
           values,
           errors,
           touched,
+          setFieldValue,
           isValid,
           dirty,
-          setFieldValue,
         }) => (
           <ScrollView contentContainerStyle={styles.scrollContainer}>
             <View style={styles.container}>
@@ -176,11 +194,13 @@ const RegisterScreen = () => {
                 <HelperText type="error">{errors.confirmPassword}</HelperText>
               )}
 
+              <ProfileImage register={true} setFieldValue={setFieldValue} />
+
               <Button
                 mode="contained"
                 onPress={handleSubmit}
                 style={styles.button}
-                disabled={!(isValid && dirty)}
+                disabled={!isValid}
               >
                 Register
               </Button>
@@ -191,25 +211,7 @@ const RegisterScreen = () => {
                   onDismiss={() => setAvatarModalVisible(false)}
                   contentContainerStyle={styles.modalContent}
                 >
-                  <Text style={styles.modalTitle}>Choose an Avatar</Text>
-
-                  <View style={styles.avatarGrid}>
-                    {avatars.map((avatar, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        onPress={() => selectAvatar(avatar, setFieldValue)}
-                        style={styles.avatarOption}
-                      >
-                        <Avatar.Icon
-                          size={60}
-                          icon={avatar.icon}
-                          color="white"
-                          backgroundColor={avatar.color}
-                        />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
+                  <ProfileImage />
                   <Button
                     mode="text"
                     onPress={() => setAvatarModalVisible(false)}
@@ -280,5 +282,10 @@ const styles = StyleSheet.create({
   },
   avatarOption: {
     margin: 10,
+  },
+  avatarContainer: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginBottom: 20,
   },
 });

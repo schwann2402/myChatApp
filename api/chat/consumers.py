@@ -2,11 +2,13 @@ from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer 
 import json
 import base64
-from .serializers import UserSerializer
+from .serializers import UserSerializer, SearchSerializer, RequestSerializer
 from django.core.files.base import ContentFile
 from io import BytesIO
 from PIL import Image as PILImage
 import os
+from django.db.models import Q
+from .models import User, Connection
 
 class ChatConsumer(WebsocketConsumer):
     
@@ -42,6 +44,12 @@ class ChatConsumer(WebsocketConsumer):
         
         if data_source == 'thumbnail':
             self.receive_thumbnail(data)
+        if data_source == 'search':
+            self.receive_search(data)
+        if data_source == 'request.connect':
+            self.receive_request_connect(data)
+        if data_source == 'request.list':
+            self.receive_request_list(data)
       
     def receive_thumbnail(self, data):
         user = self.scope['user']
@@ -103,7 +111,66 @@ class ChatConsumer(WebsocketConsumer):
                 'error': f"Error processing image: {str(e)}"
             }))
     
+    def receive_search(self, data):
+        query = data.get('query')
+        
+        # Search users
+        users = User.objects.filter(
+            Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query)
+        ).exclude(
+            username=self.username
+        )
+        
+        # Serialize users
+        serialized_users = SearchSerializer(users, many=True).data
+        
+   
+        # Send back to client
+        self.send(text_data=json.dumps({
+            'source': 'search',
+            'results': serialized_users
+        }))
+   
+    def receive_request_connect(self, data):
+        username = data.get('username')
+        print(username)
+        
+        #Attempt to fetch receiver name 
+        try:
+            receiver = User.objects.get(username=username)
+            receiver_serialized = UserSerializer(receiver).data
+        except User.DoesNotExist:
+            print(f"User {username} does not exist")
+            receiver = None
+            return
+        
+        # Send back to client
+        self.send(text_data=json.dumps({
+            'source': 'request.connect',
+            'receiver': receiver_serialized
+        }))
+
+        # Create connection
+        connection, _ = Connection.objects.get_or_create(
+            sender = self.scope['user'],
+            receiver = receiver
+        )
+
+        serialized = RequestSerializer(connection)
+
+        self.send_group(connection.sender.username, 'request.connect', serialized.data)
+
+        self.send_group(connection.receiver.username, 'request.connect', serialized.data)
     # Catch broadcast to client helpers 
+
+    def receive_request_list(self, data):
+        user = self.scope['user']
+        connections = Connection.objects.filter(receiver=user, accepted=False)
+        
+        serialized = RequestSerializer(connections, many=True)
+
+        self.send_group(user.username, 'request.list', serialized.data)
+        
     def send_group(self, group, source, data):
         reponse = {
             'type': 'broadcast_group',

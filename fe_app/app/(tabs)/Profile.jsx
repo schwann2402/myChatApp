@@ -25,10 +25,12 @@ const ProfileLogout = () => {
 
 import UserAvatar from "@/components/UserAvatar";
 
-const ProfileImage = () => {
+export const ProfileImage = ({ register = false, setFieldValue }) => {
   const uploadThumbnail = useGlobal((state) => state.uploadThumbnail);
   const user = useGlobal((state) => state.user);
   const [imageError, setImageError] = useState(false);
+  const [imageData, setImageData] = useState(null);
+  console.log("imageData", imageData);
 
   const userData = user.user || user;
   const thumbnailPath = userData?.thumbnail;
@@ -37,10 +39,10 @@ const ProfileImage = () => {
   const imageUrl = thumbnailPath ? `http://${address}${thumbnailPath}` : null;
 
   useEffect(() => {
-    if (imageUrl || thumbnailBase64) {
+    if (imageUrl || thumbnailBase64 || imageData) {
       setImageError(false);
     }
-  }, [imageUrl, thumbnailBase64]);
+  }, [imageUrl, thumbnailBase64, imageData]);
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -53,6 +55,16 @@ const ProfileImage = () => {
 
     if (!result.canceled) {
       const imageData = result.assets[0];
+      console.log("imageData", imageData);
+      if (register) {
+        // Get the base64 data
+        const base64Data = imageData.base64;
+        // Format it as data URL
+        const base64String = `data:image/jpeg;base64,${base64Data}`;
+        setFieldValue("thumbnail", base64String);
+        setImageData(imageData);
+        return;
+      }
       uploadThumbnail(imageData);
     }
   };
@@ -61,7 +73,7 @@ const ProfileImage = () => {
     <View style={styles.avatarContainer}>
       <UserAvatar
         thumbnailBase64={thumbnailBase64}
-        imageUrl={imageUrl}
+        imageUrl={imageUrl || imageData?.uri}
         imageError={imageError}
         setImageError={setImageError}
         onPress={pickImage}
