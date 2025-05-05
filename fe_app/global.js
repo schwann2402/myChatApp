@@ -43,13 +43,18 @@ function responseSearch(set, get, data) {
   }));
 }
 
-function responseRequestConnect(set, get, connection) {
+function responseRequestConnect(set, get, data) {
   const user = get().user;
+  const connection = data.data;
+  if (!connection || !user) {
+    return;
+  }
+  utils.log("Request connect response received:", connection);
   // If I make the request, update search list
-  if (user.username === connection.username) {
+  if (user.username === connection.sender.username) {
     const searchResults = [...get().searchResults];
     const index = searchResults.findIndex(
-      (request) => request.username === connection.username
+      (request) => request?.sender?.username === connection?.sender?.username
     );
     if (index !== -1) {
       searchResults[index].status = "pending-them";
@@ -59,8 +64,30 @@ function responseRequestConnect(set, get, connection) {
     }
     // If I receive the request add to requests list
   } else {
+    const requestList = [...get().requests];
+    const requestIndex = requestList.findIndex(
+      (request) => request.sender.username === connection.sender.username
+    );
+    if (requestIndex === -1) {
+      requestList.unshift(connection);
+      set((state) => ({
+        requests: requestList,
+      }));
+    }
     return;
   }
+}
+
+function responseFriendsList(set, get, data) {
+  const user = get().user;
+  const connections = data.data;
+  if (!connections || !user) {
+    return;
+  }
+  utils.log("Friends list response received:", connections);
+  set((state) => ({
+    friendsList: connections,
+  }));
 }
 
 function responseRequestList(set, get, data) {
@@ -75,6 +102,37 @@ function responseRequestList(set, get, data) {
   set((state) => ({
     requests: requests,
   }));
+}
+
+function responseRequestAccept(set, get, data) {
+  const { data: connection } = data;
+  const user = get().user;
+
+  if (connection.receiver.username === user.username) {
+    const requests = [...get().requests];
+    const requestIndex = requests.findIndex(
+      (request) => request.id == connection.id
+    );
+    if (requestIndex !== -1) {
+      requests.splice(requestIndex, 1);
+      set((state) => ({
+        requests: requests,
+      }));
+    }
+  } else {
+    if (connection.sender.username === user.username) {
+      const searchResults = [...get().searchResults];
+      const index = searchResults.findIndex(
+        (request) => request.sender.username === connection.sender.username
+      );
+      if (index !== -1) {
+        searchResults[index].status = "accepted";
+        set((state) => ({
+          searchResults: searchResults,
+        }));
+      }
+    }
+  }
 }
 const useGlobal = create((set, get) => ({
   // initialization...
@@ -264,6 +322,47 @@ const useGlobal = create((set, get) => ({
     );
   },
 
+  requestAccept: async (username) => {
+    const socket = get().socket;
+    if (!socket) {
+      return;
+    }
+    socket.send(
+      JSON.stringify({
+        source: "request.accept",
+        username: username,
+      })
+    );
+  },
+
+  requestDecline: async (username) => {
+    const socket = get().socket;
+    if (!socket) {
+      return;
+    }
+    socket.send(
+      JSON.stringify({
+        source: "request.decline",
+        username: username,
+      })
+    );
+  },
+
+  // Friends
+  friendsList: [],
+  getFriends: async (username) => {
+    const socket = get().socket;
+    if (!socket) {
+      return;
+    }
+    socket.send(
+      JSON.stringify({
+        source: "friends.list",
+        username: username,
+      })
+    );
+  },
+
   // Socket
   socket: null,
   socketConnect: async () => {
@@ -288,6 +387,7 @@ const useGlobal = create((set, get) => ({
 
     socket.onmessage = (e) => {
       const data = JSON.parse(e.data);
+      console.log("data is ", data);
       utils.log("Socket message received - RAW DATA:", e.data);
       utils.log("Socket message received - PARSED:", data);
       utils.log("Socket message source:", data.source);
@@ -297,6 +397,8 @@ const useGlobal = create((set, get) => ({
         "request.connect": responseRequestConnect,
         thumbnail: responseThumbnail,
         search: responseSearch,
+        "request.accept": responseRequestAccept,
+        "friends.list": responseFriendsList,
       };
 
       const resp = responses[data.source];

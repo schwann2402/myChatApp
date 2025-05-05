@@ -2,12 +2,12 @@ from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer 
 import json
 import base64
-from .serializers import UserSerializer, SearchSerializer, RequestSerializer
-from django.core.files.base import ContentFile
+
+from .serializers import UserSerializer, SearchSerializer, RequestSerializer, FriendSerializer
 from io import BytesIO
 from PIL import Image as PILImage
 import os
-from django.db.models import Q
+from django.db.models import Q, OuterRef, Exists
 from .models import User, Connection
 
 class ChatConsumer(WebsocketConsumer):
@@ -42,15 +42,63 @@ class ChatConsumer(WebsocketConsumer):
         data_source = data.get('source')
         #print('receive', json.dumps(data, indent=2))
         
+        # Handle thumbnail
         if data_source == 'thumbnail':
             self.receive_thumbnail(data)
+        
+        # Handle search
         if data_source == 'search':
             self.receive_search(data)
+        
+        # Handle request connect
         if data_source == 'request.connect':
             self.receive_request_connect(data)
+        
+        # Handle request list
         if data_source == 'request.list':
             self.receive_request_list(data)
+        
+        # Handle request accept
+        if data_source == 'request.accept':
+            self.receive_request_accept(data)
+        
+        # Handle request decline
+        if data_source == 'request.decline':
+            self.receive_request_decline(data)
+
+        # Get friends list 
+        if (data_source == 'friends.list'):
+            self.receive_friends_list(data)
       
+
+    def receive_friends_list(self, data): 
+        user = self.scope['user']
+        connections = Connection.objects.filter(
+            Q(sender=user, accepted=True) | Q(receiver=user, accepted=True)
+        )
+        serialized = FriendSerializer(connections, context={'user': user}, many=True)
+        self.send_group(user.username, 'friends.list', serialized.data)
+
+    def receive_request_accept(self, data):
+        username = data.get('username')
+        try:
+            connection = Connection.objects.get(
+                sender__username = username,
+                receiver = self.scope['user']
+            )
+        except Connection.DoesNotExist:
+            print('Error: connection does not exist')
+            return
+
+        connection.accepted = True 
+        connection.save()
+
+        serialized = RequestSerializer(connection)
+
+        #Send to both users 
+        self.send_group(connection.sender.username, 'request.accept', serialized.data)
+        self.send_group(connection.receiver.username, 'request.accept', serialized.data)
+        
     def receive_thumbnail(self, data):
         user = self.scope['user']
 
@@ -112,6 +160,7 @@ class ChatConsumer(WebsocketConsumer):
             }))
     
     def receive_search(self, data):
+        
         query = data.get('query')
         
         # Search users
@@ -119,6 +168,28 @@ class ChatConsumer(WebsocketConsumer):
             Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query)
         ).exclude(
             username=self.username
+        ).annotate(
+            pending_them=Exists(
+                Connection.objects.filter(
+                    sender=self.scope['user'],
+                    receiver=OuterRef('pk'),
+                    accepted=False
+                )
+            ),
+            pending_me=Exists(
+                Connection.objects.filter(
+                    receiver=self.scope['user'],
+                    sender=OuterRef('pk'),
+                    accepted=False
+                )
+            ),
+            connected=Exists(
+                Connection.objects.filter(
+                    Q(sender=self.scope['user'], receiver=OuterRef('pk'), accepted=True) |
+                    Q(receiver=self.scope['user'], sender=OuterRef('pk'), accepted=True),
+                    accepted=True
+                )
+            )
         )
         
         # Serialize users

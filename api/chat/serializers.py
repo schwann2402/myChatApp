@@ -72,8 +72,13 @@ class SearchSerializer(UserSerializer):
         fields = ['username', 'name', 'thumbnail', 'status']
 
     def get_status(self, obj):
-        return 'offline'
-    
+        if obj.pending_them:
+            return 'pending-them'
+        elif obj.pending_me:
+            return 'pending-me'
+        elif obj.connected:
+            return 'connected'
+        return 'no-connection'
 
 class RequestSerializer(serializers.ModelSerializer):
     sender = UserSerializer()
@@ -82,3 +87,22 @@ class RequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = Connection
         fields = ['id', 'sender', 'receiver', 'created']
+
+class FriendSerializer(serializers.ModelSerializer):
+    friend = serializers.SerializerMethodField()
+    preview = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Connection
+        fields = ['id', 'friend', 'preview', 'updated']
+    
+    def get_friend(self, obj): 
+        if self.context['user'] == obj.sender:
+            return UserSerializer(obj.receiver).data
+        elif self.context['user'] == obj.receiver:
+            return UserSerializer(obj.sender).data
+        else: 
+            return None   
+
+    def get_preview(self, obj): 
+        return 'You made a connection'

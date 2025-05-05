@@ -14,6 +14,8 @@ const Search = () => {
   const searchResults = useGlobal((state) => state.searchResults);
   const searchUsers = useGlobal((state) => state.searchUsers);
   const requestConnect = useGlobal((state) => state.requestConnect);
+  const user = useGlobal((state) => state.user);
+  console.log(searchResults);
 
   const debouncedSearch = useCallback(
     debounce((text) => {
@@ -35,6 +37,32 @@ const Search = () => {
 
   const formattedImageUrl = (url) => {
     return url ? `http://${address}${url}` : null;
+  };
+
+  const getButtonText = (status) => {
+    switch (status) {
+      case "pending-them":
+        return "Pending";
+      case "pending-me":
+        return "Pending";
+      case "connected":
+        return "Friends";
+      default:
+        return "Connect";
+    }
+  };
+
+  const getButtonColor = (status) => {
+    switch (status) {
+      case "pending-them":
+        return "#606E6D";
+      case "pending-me":
+        return "#606E6D";
+      case "connected":
+        return "#122482";
+      default:
+        return "#1F8382";
+    }
   };
 
   return (
@@ -76,7 +104,7 @@ const Search = () => {
                   <MaterialIcons
                     name="lens"
                     size={16}
-                    color={result.status === "Online" ? "#122482" : "red"}
+                    color={result.status === "connected" ? "green" : "red"}
                     style={{ alignSelf: "center", marginRight: 12 }}
                   />
                 </View>
@@ -94,10 +122,15 @@ const Search = () => {
                 <Button
                   {...props}
                   mode="contained"
-                  buttonColor="#1F8382"
-                  onPress={() => handleConnect(result)}
+                  buttonColor={getButtonColor(result.status)}
+                  onPress={() => {
+                    if (result.status === "connected") {
+                      return;
+                    }
+                    handleConnect(result);
+                  }}
                 >
-                  Connect
+                  {getButtonText(result.status)}
                 </Button>
               )}
               style={styles.searchResultItem}

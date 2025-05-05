@@ -1,20 +1,11 @@
-import { Tabs, useRouter } from "expo-router";
+import { Tabs, useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
-import {
-  Platform,
-  TouchableOpacity,
-  View,
-  Text,
-  StyleSheet,
-} from "react-native";
-import Feather from "@expo/vector-icons/Feather";
+import { Platform, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { HapticTab } from "@/components/HapticTab";
-import { IconSymbol } from "@/components/ui/IconSymbol";
 import TabBarBackground from "@/components/ui/TabBarBackground";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { BlurView } from "expo-blur";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -38,25 +29,39 @@ export default function TabLayout() {
     </TouchableOpacity>
   );
 
-  // Simple header title component
   const HeaderTitle = ({ title }: { title: string }) => (
     <Text style={styles.headerTitle}>{title}</Text>
   );
+
+  const ChatHeader = () => {
+    const params = useLocalSearchParams();
+
+    try {
+      const friendData = params.friend
+        ? JSON.parse(params.friend as string)
+        : null;
+
+      if (friendData && friendData.name) {
+        return <HeaderTitle title={friendData.name} />;
+      }
+    } catch (error) {
+      console.error("Error parsing friend data:", error);
+    }
+
+    return <HeaderTitle title="Chats" />;
+  };
 
   return (
     <Tabs
       initialRouteName="Profile"
       screenOptions={{
         tabBarActiveTintColor: tintColor,
-        // Enable headers for all tabs
         headerShown: true,
-        // Style the header
         headerStyle: {
           backgroundColor: Colors[colorScheme ?? "light"].background,
         },
         headerTintColor: Colors[colorScheme ?? "light"].text,
         headerTitleAlign: "center",
-        // Use custom header title component
         headerTitle: ({ children }) => (
           <HeaderTitle title={children as string} />
         ),
@@ -98,7 +103,7 @@ export default function TabLayout() {
         name="Chats"
         options={{
           title: "Chats",
-          headerTitle: "Chats",
+          headerTitle: ChatHeader,
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="chat" size={28} color={color} />
           ),
@@ -116,6 +121,24 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="Friends"
+        options={{
+          title: "Friends",
+          headerTitle: "Friends",
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="people-outline" size={28} color={color} />
+          ),
+          headerLeft: () => (
+            <HeaderIcon
+              name="menu"
+              onPress={() => console.log("Menu pressed")}
+            />
+          ),
+        }}
+      />
+
       <Tabs.Screen
         name="Profile"
         options={{

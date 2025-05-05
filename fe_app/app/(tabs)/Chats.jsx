@@ -1,146 +1,194 @@
-import React, { useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   StyleSheet,
+  SafeAreaView,
   View,
   Text,
   FlatList,
   TouchableOpacity,
   Image,
+  TextInput,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { Divider } from "react-native-paper";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import utils from "@/utils";
+import { Colors } from "@/constants/Colors";
 
-// Sample data for chat list
-const SAMPLE_CHATS = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    lastMessage: "Are we still meeting tomorrow?",
-    time: "10:30 AM",
-    unread: 2,
-    avatar: null,
-  },
-  {
-    id: "2",
-    name: "Mike Peterson",
-    lastMessage: "I sent you the files you requested",
-    time: "Yesterday",
-    unread: 0,
-    avatar: null,
-  },
-  {
-    id: "3",
-    name: "Team Chat",
-    lastMessage: "David: Let's discuss this at the meeting",
-    time: "Yesterday",
-    unread: 5,
-    avatar: null,
-  },
-  {
-    id: "4",
-    name: "Lisa Wong",
-    lastMessage: "Thanks for your help!",
-    time: "Monday",
-    unread: 0,
-    avatar: null,
-  },
-  {
-    id: "5",
-    name: "John Smith",
-    lastMessage: "Can you send me the presentation?",
-    time: "Monday",
-    unread: 0,
-    avatar: null,
-  },
-];
+const ChatScreen = ({ friend }) => {
+  const { name, thumbnail, status } = friend;
+  const [messages, setMessages] = useState([]);
+  const [inputText, setInputText] = useState("");
+  const flatListRef = useRef(null);
 
-const ChatItem = ({ item, onPress }) => {
+  // Initialize with some sample messages
+  useEffect(() => {
+    const initialMessages = [
+      {
+        id: 1,
+        text: "Hello! How are you?",
+        sender: "other",
+        timestamp: new Date().toISOString(),
+      },
+      {
+        id: 2,
+        text: "I'm good, thanks! How about you?",
+        sender: "me",
+        timestamp: new Date().toISOString(),
+      },
+    ];
+    setMessages(initialMessages);
+  }, []);
+
   return (
-    <TouchableOpacity style={styles.chatItem} onPress={() => onPress(item)}>
-      <View style={styles.avatarContainer}>
-        {item.avatar ? (
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={messages}
+        renderItem={({ item }) => (
+          <View
+            style={[
+              styles.messageContainer,
+              item.sender === "me" ? styles.messageRight : styles.messageLeft,
+            ]}
+          >
+            <Text style={styles.messageText}>{item.text}</Text>
+            <Text style={styles.messageTimestamp}>
+              {new Date(item.timestamp).toLocaleTimeString()}
+            </Text>
           </View>
         )}
-      </View>
-      <View style={styles.chatContent}>
-        <View style={styles.chatHeader}>
-          <Text style={styles.chatName}>{item.name}</Text>
-          <Text style={styles.chatTime}>{item.time}</Text>
-        </View>
-        <View style={styles.chatFooter}>
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessage}
-          </Text>
-          {item.unread > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>{item.unread}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
+        keyExtractor={(item) => item.id.toString()}
+        inverted
+        style={styles.messagesList}
+        contentContainerStyle={styles.messagesContainer}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Type a message..."
+        value={inputText}
+        onChangeText={setInputText}
+        onSubmitEditing={handleSend}
+        multiline
+        numberOfLines={4}
+        maxLength={200}
+      />
+    </SafeAreaView>
   );
 };
 
 export default function Chats() {
+  const navigation = useNavigation();
+  const params = useLocalSearchParams();
   const router = useRouter();
-  const [chats, setChats] = useState(SAMPLE_CHATS);
 
-  const handleChatPress = (chat) => {
-    console.log(`Chat pressed: ${chat.name}`);
-    // Navigate to chat detail screen (to be implemented)
-    // router.push(`/chat/${chat.id}`);
-  };
+  useEffect(() => {
+    try {
+      if (params.friend) {
+        const friendData = JSON.parse(params.friend);
 
-  return (
-    <View style={styles.container}>
-      <FlatList
-        data={chats}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ChatItem item={item} onPress={handleChatPress} />
-        )}
-        ItemSeparatorComponent={() => <Divider />}
-      />
-    </View>
-  );
+        if (friendData && friendData.name) {
+          navigation.setOptions({
+            headerTitle: friendData.name,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error parsing friend data:", error);
+    }
+  }, [params.friend, navigation]);
+
+  const friendData = params.friend ? JSON.parse(params.friend) : null;
+
+  if (!friendData) {
+    return null;
+  }
+
+  return <ChatScreen friend={friendData} />;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.background,
   },
-  chatItem: {
+  messagesList: {
+    flex: 1,
+  },
+  messagesContainer: {
+    padding: 16,
+  },
+  messageContainer: {
+    maxWidth: "80%",
+    marginBottom: 16,
+    borderRadius: 20,
+    padding: 12,
+  },
+  messageLeft: {
+    backgroundColor: Colors.receivedBackground,
+    alignSelf: "flex-start",
+  },
+  messageRight: {
+    backgroundColor: Colors.sentBackground,
+    alignSelf: "flex-end",
+    marginRight: 10,
+  },
+  messageText: {
+    color: Colors.sentText,
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  messageTimestamp: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  inputContainer: {
     flexDirection: "row",
     padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.inputBorder,
+  },
+  inputWrapper: {
+    flex: 1,
+    marginRight: 12,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: 25,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    shadowColor: Colors.accent,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    backgroundColor: "blue",
+  },
+  input: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 16,
+  },
+  sendButton: {
+    justifyContent: "center",
     alignItems: "center",
   },
   avatarContainer: {
-    marginRight: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+    backgroundColor: Colors.card,
   },
   avatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
   },
-  avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#e0e0e0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   avatarText: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#757575",
+    color: Colors.textSecondary,
   },
   chatContent: {
     flex: 1,
@@ -155,10 +203,11 @@ const styles = StyleSheet.create({
   chatName: {
     fontSize: 16,
     fontWeight: "600",
+    color: Colors.text,
   },
   chatTime: {
     fontSize: 12,
-    color: "#757575",
+    color: Colors.textSecondary,
   },
   chatFooter: {
     flexDirection: "row",
@@ -167,21 +216,31 @@ const styles = StyleSheet.create({
   },
   lastMessage: {
     fontSize: 14,
-    color: "#757575",
+    color: Colors.textSecondary,
     flex: 1,
     marginRight: 8,
   },
   unreadBadge: {
-    backgroundColor: "#4c669f",
-    borderRadius: 10,
-    minWidth: 20,
+    backgroundColor: Colors.accent,
+    width: 20,
     height: 20,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 5,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    shadowColor: Colors.accent,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   unreadText: {
-    color: "white",
+    color: Colors.inputBackground,
     fontSize: 12,
     fontWeight: "bold",
   },

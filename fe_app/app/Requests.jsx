@@ -11,14 +11,15 @@ import { MaterialIcons } from "@expo/vector-icons";
 import useGlobal from "@/global";
 import { Avatar } from "react-native-paper";
 import { address } from "@/api";
+import { useNavigation } from "@react-navigation/native";
 
 const Requests = () => {
+  const navigation = useNavigation();
   const requests = useGlobal((state) => state.requests);
-  console.log("Requests:", requests);
-
+  const requestAccept = useGlobal((state) => state.requestAccept);
   const handleAccept = (username) => {
     // TODO: Implement accept request functionality
-    console.log("Accepting request from:", username);
+    requestAccept(username);
   };
 
   const handleDecline = (username) => {
@@ -63,15 +64,20 @@ const Requests = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Friend Requests</Text>
-        <Text style={styles.headerSubtitle}>
-          {requests?.length || 0} new requests
-        </Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <MaterialIcons name="arrow-back" size={24} color="black" />
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Friend Requests</Text>
+          <Text style={styles.headerSubtitle}>
+            {requests?.length || 0} new requests
+          </Text>
+        </View>
       </View>
       <FlatList
         data={requests}
         renderItem={renderItem}
-        keyExtractor={(item) => item.username}
+        keyExtractor={(item) => item.sender.username}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -95,6 +101,10 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
+    display: "flex",
+    flexDirection: "row",
+    gap: 5,
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 24,
@@ -104,6 +114,9 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: "#666",
+  },
+  headerContent: {
+    display: "flex",
   },
   listContainer: {
     padding: 16,
