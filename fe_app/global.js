@@ -84,6 +84,7 @@ function responseFriendsList(set, get, data) {
   if (!connections || !user) {
     return;
   }
+
   utils.log("Friends list response received:", connections);
   set((state) => ({
     friendsList: connections,
@@ -359,6 +360,21 @@ const useGlobal = create((set, get) => ({
       JSON.stringify({
         source: "friends.list",
         username: username,
+      })
+    );
+  },
+
+  //////// Messages //////
+  messageSend: (connectionId, message) => {
+    const socket = get().socket;
+    if (!socket) {
+      return;
+    }
+    socket.send(
+      JSON.stringify({
+        source: "message.send",
+        connectionId: connectionId,
+        message: message,
       })
     );
   },

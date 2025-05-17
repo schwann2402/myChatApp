@@ -69,7 +69,24 @@ class ChatConsumer(WebsocketConsumer):
         # Get friends list 
         if (data_source == 'friends.list'):
             self.receive_friends_list(data)
+
+        if (data_source == 'message.send'):
+            self.receive_message_send(data)
       
+    
+    def receive_message_send(self, data):
+        user = self.scope['user']
+        connectionId = data.get('connectionId')
+        message = data.get('message')
+        
+        try:
+            connection = Connection.objects.get(pk=connectionId)
+        except Connection.DoesNotExist:
+            print(f"Connection {connectionId} does not exist")
+            return
+        
+        # Send message to receiver
+        self.send_group(connectionId, 'message.send', serialized.data)
 
     def receive_friends_list(self, data): 
         user = self.scope['user']

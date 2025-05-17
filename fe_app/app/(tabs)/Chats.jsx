@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   StyleSheet,
   SafeAreaView,
@@ -8,70 +9,257 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
+  KeyboardAvoidingView,
+  Keyboard,
+  Platform,
+  Animated,
 } from "react-native";
 import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
-import { Divider } from "react-native-paper";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { Divider, ActivityIndicator } from "react-native-paper";
+import { MaterialIcons } from "@expo/vector-icons";
 import utils from "@/utils";
 import { Colors } from "@/constants/Colors";
+import useGlobal from "@/global";
 
-const ChatScreen = ({ friend }) => {
+const ChatBubble = ({ message, isLastMessage }) => {
+  const { text, sender, timestamp, status } = message;
+  const isMe = sender === "me";
+  const bubbleStyle = isMe ? styles.bubbleRight : styles.bubbleLeft;
+  const textStyle = isMe ? styles.textRight : styles.textLeft;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        styles.bubbleContainer,
+        isMe ? styles.bubbleContainerRight : styles.bubbleContainerLeft,
+        { opacity: fadeAnim },
+      ]}
+    >
+      {!isMe && (
+        <View style={styles.avatarContainer}>
+          <Text style={styles.avatarText}>
+            {message.senderName
+              ? message.senderName.charAt(0).toUpperCase()
+              : "?"}
+          </Text>
+        </View>
+      )}
+      <View style={[styles.bubble, bubbleStyle]}>
+        <Text style={[styles.messageText, textStyle]}>{text}</Text>
+        <View style={styles.messageFooter}>
+          <Text
+            style={[
+              styles.timestamp,
+              isMe ? styles.timestampRight : styles.timestampLeft,
+            ]}
+          >
+            {new Date(timestamp).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Text>
+          {isMe && (
+            <MaterialIcons
+              name={status === "sent" ? "check" : "done-all"}
+              size={14}
+              color={status === "delivered" ? "#4CAF50" : "#8E8E8E"}
+              style={styles.statusIcon}
+            />
+          )}
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
+
+const DateSeparator = ({ date }) => (
+  <View style={styles.dateSeparator}>
+    <View style={styles.dateLine} />
+    <Text style={styles.dateText}>{date}</Text>
+    <View style={styles.dateLine} />
+  </View>
+);
+
+const TypingIndicator = () => (
+  <View style={styles.typingContainer}>
+    <View style={styles.typingBubble}>
+      <View style={styles.typingDot} />
+      <View style={[styles.typingDot, styles.typingDotMiddle]} />
+      <View style={styles.typingDot} />
+    </View>
+    <Text style={styles.typingText}>Typing...</Text>
+  </View>
+);
+
+const ChatScreen = ({ friend, connectionId }) => {
+  const insets = useSafeAreaInsets();
   const { name, thumbnail, status } = friend;
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [showTypingIndicator, setShowTypingIndicator] = useState(false);
   const flatListRef = useRef(null);
+  const inputRef = useRef(null);
+  const messageSend = useGlobal((state) => state.messageSend);
 
-  // Initialize with some sample messages
+  const handleSend = () => {
+    console.log("inputText", inputText);
+    if (!inputText.trim()) return;
+    const cleanedInput = inputText.replace(/\s+/g, " ");
+
+    // const newMessage = {
+    //   id: Date.now(),
+    //   text: cleanedInput,
+    //   sender: "me",
+    //   senderName: "You",
+    //   timestamp: new Date().toISOString(),
+    //   status: "sent",
+    // };
+
+    // setMessages((prev) => [...prev, newMessage]);
+    // setInputText("");
+
+    // Scroll to bottom
+    messageSend(connectionId, cleanedInput);
+    setInputText("");
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  const getRandomResponse = () => {
+    const responses = [
+      "That's interesting!",
+      "I see what you mean.",
+      "Thanks for sharing that.",
+      "I hadn't thought about it that way before.",
+      "That makes sense.",
+      "I appreciate your perspective.",
+      "Tell me more about that.",
+      "How does that make you feel?",
+      "What happened next?",
+      "I'm glad you mentioned that.",
+    ];
+    return responses[Math.floor(Math.random() * responses.length)];
+  };
+
+  const handleInputFocus = () => {
+    setIsTyping(true);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  const handleInputBlur = () => {
+    setIsTyping(false);
+  };
+
   useEffect(() => {
     const initialMessages = [
       {
         id: 1,
-        text: "Hello! How are you?",
+        text: "Hello! How are you doing today?",
         sender: "other",
-        timestamp: new Date().toISOString(),
+        senderName: name,
+        timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+        status: "delivered",
       },
       {
         id: 2,
-        text: "I'm good, thanks! How about you?",
+        text: "I'm good, thanks! Just working on this new project. How about you?",
         sender: "me",
-        timestamp: new Date().toISOString(),
+        senderName: "You",
+        timestamp: new Date(Date.now() - 3540000).toISOString(), // 59 minutes ago
+        status: "delivered",
+      },
+      {
+        id: 3,
+        text: "That sounds exciting! I've been pretty busy too with work and family stuff.",
+        sender: "other",
+        senderName: name,
+        timestamp: new Date(Date.now() - 3480000).toISOString(), // 58 minutes ago
+        status: "delivered",
+      },
+      {
+        id: 4,
+        text: "Would you like to grab coffee sometime this week?",
+        sender: "me",
+        senderName: "You",
+        timestamp: new Date(Date.now() - 60000).toISOString(), // 1 minute ago
+        status: "delivered",
       },
     ];
     setMessages(initialMessages);
-  }, []);
+  }, [name]);
+
+  const renderItem = ({ item, index }) => {
+    const isLastMessage = index === 0;
+    return <ChatBubble message={item} isLastMessage={isLastMessage} />;
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <FlatList
-        data={messages}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.messageContainer,
-              item.sender === "me" ? styles.messageRight : styles.messageLeft,
-            ]}
-          >
-            <Text style={styles.messageText}>{item.text}</Text>
-            <Text style={styles.messageTimestamp}>
-              {new Date(item.timestamp).toLocaleTimeString()}
-            </Text>
+    <SafeAreaView
+      style={{ flex: 1, marginBottom: Platform.OS === "ios" ? 60 : 10 }}
+      edges={["bottom"]}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.container}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      >
+        <FlatList
+          data={messages?.sort(
+            (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+          )}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id.toString()}
+          inverted
+          style={styles.messagesList}
+          contentContainerStyle={styles.messagesContainer}
+          ref={flatListRef}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={showTypingIndicator ? <TypingIndicator /> : null}
+        />
+
+        <View style={[styles.inputContainer, { paddingBottom: insets.bottom }]}>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              placeholder="Type a message..."
+              value={inputText}
+              onChangeText={setInputText}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              onSubmitEditing={handleSend}
+              multiline
+              numberOfLines={1}
+              maxLength={500}
+              placeholderTextColor="#8E8E8E"
+            />
           </View>
-        )}
-        keyExtractor={(item) => item.id.toString()}
-        inverted
-        style={styles.messagesList}
-        contentContainerStyle={styles.messagesContainer}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Type a message..."
-        value={inputText}
-        onChangeText={setInputText}
-        onSubmitEditing={handleSend}
-        multiline
-        numberOfLines={4}
-        maxLength={200}
-      />
+
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              inputText.trim() ? styles.sendButtonActive : null,
+            ]}
+            onPress={handleSend}
+            disabled={!inputText.trim()}
+          >
+            <MaterialIcons
+              name="send"
+              size={20}
+              color={inputText.trim() ? "#FFFFFF" : "#8E8E8E"}
+            />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -79,7 +267,6 @@ const ChatScreen = ({ friend }) => {
 export default function Chats() {
   const navigation = useNavigation();
   const params = useLocalSearchParams();
-  const router = useRouter();
 
   useEffect(() => {
     try {
@@ -88,7 +275,33 @@ export default function Chats() {
 
         if (friendData && friendData.name) {
           navigation.setOptions({
-            headerTitle: friendData.name,
+            headerTitle: () => (
+              <View style={styles.headerContainer}>
+                <Text style={styles.headerTitle}>{friendData.name}</Text>
+                <View style={styles.statusContainer}>
+                  <MaterialIcons
+                    name="lens"
+                    size={10}
+                    color={
+                      friendData.status === "Online" ? "#4CAF50" : "#9E9E9E"
+                    }
+                  />
+                  <Text style={styles.statusText}>
+                    {friendData.status || "Offline"}
+                  </Text>
+                </View>
+              </View>
+            ),
+            headerRight: () => (
+              <View style={styles.headerActions}>
+                <TouchableOpacity style={styles.headerButton}>
+                  <MaterialIcons name="videocam" size={24} color="#2196F3" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerButton}>
+                  <MaterialIcons name="call" size={22} color="#2196F3" />
+                </TouchableOpacity>
+              </View>
+            ),
           });
         }
       }
@@ -98,150 +311,219 @@ export default function Chats() {
   }, [params.friend, navigation]);
 
   const friendData = params.friend ? JSON.parse(params.friend) : null;
+  const connectionId = params?.id ? params.id : null;
 
   if (!friendData) {
     return null;
   }
 
-  return <ChatScreen friend={friendData} />;
+  return <ChatScreen friend={friendData} connectionId={connectionId} />;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#d7edf5",
+  },
+  headerContainer: {
+    flexDirection: "column",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#000000",
+  },
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusText: {
+    fontSize: 12,
+    color: "#8E8E8E",
+    marginLeft: 4,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  headerButton: {
+    marginLeft: 16,
   },
   messagesList: {
     flex: 1,
   },
   messagesContainer: {
     padding: 16,
+    paddingBottom: 16,
   },
-  messageContainer: {
+  bubbleContainer: {
+    flexDirection: "row",
+    marginBottom: 12,
     maxWidth: "80%",
-    marginBottom: 16,
-    borderRadius: 20,
-    padding: 12,
   },
-  messageLeft: {
-    backgroundColor: Colors.receivedBackground,
+  bubbleContainerLeft: {
     alignSelf: "flex-start",
   },
-  messageRight: {
-    backgroundColor: Colors.sentBackground,
+  bubbleContainerRight: {
     alignSelf: "flex-end",
-    marginRight: 10,
+    justifyContent: "flex-end",
   },
-  messageText: {
-    color: Colors.sentText,
-    fontSize: 16,
+  avatarContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#2196F3",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+    alignSelf: "flex-end",
     marginBottom: 4,
   },
-  messageTimestamp: {
+  avatarText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  bubble: {
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    maxWidth: "100%",
+  },
+  bubbleLeft: {
+    backgroundColor: "#FFFFFF",
+    borderBottomLeftRadius: 4,
+  },
+  bubbleRight: {
+    backgroundColor: "#DCF8C6",
+    borderBottomRightRadius: 4,
+  },
+  messageText: {
+    fontSize: 16,
+    marginBottom: 4,
+    lineHeight: 22,
+  },
+  textLeft: {
+    color: "#000000",
+  },
+  textRight: {
+    color: "#000000",
+  },
+  messageFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  timestamp: {
+    fontSize: 11,
+    marginRight: 4,
+  },
+  timestampLeft: {
+    color: "#8E8E8E",
+  },
+  timestampRight: {
+    color: "#8E8E8E",
+  },
+  statusIcon: {
+    marginLeft: 2,
+  },
+  dateSeparator: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  dateLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E0E0E0",
+  },
+  dateText: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: "#8E8E8E",
+    marginHorizontal: 8,
+  },
+  typingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    marginLeft: 8,
+  },
+  typingBubble: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  typingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#8E8E8E",
+    marginHorizontal: 2,
+  },
+  typingDotMiddle: {
+    marginTop: -4,
+  },
+  typingText: {
+    fontSize: 12,
+    color: "#8E8E8E",
+    marginLeft: 8,
   },
   inputContainer: {
     flexDirection: "row",
-    padding: 16,
+    padding: 12,
+    paddingHorizontal: 16,
     borderTopWidth: 1,
-    borderTopColor: Colors.inputBorder,
+    borderTopColor: "#E0E0E0",
+    backgroundColor: "#F5F5F5",
+    alignItems: "center",
+    paddingBottom: 16,
   },
   inputWrapper: {
     flex: 1,
-    marginRight: 12,
-    backgroundColor: Colors.inputBackground,
-    borderRadius: 25,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: Colors.accent,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    backgroundColor: "blue",
-  },
-  input: {
-    flex: 1,
-    color: Colors.text,
-    fontSize: 16,
-  },
-  sendButton: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-    backgroundColor: Colors.card,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: Colors.textSecondary,
-  },
-  chatContent: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  chatHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  chatName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Colors.text,
-  },
-  chatTime: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  chatFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  lastMessage: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    flex: 1,
+    paddingVertical: Platform.OS === "ios" ? 10 : 4,
     marginRight: 8,
   },
-  unreadBadge: {
-    backgroundColor: Colors.accent,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  input: {
+    color: "#000000",
+    fontSize: 16,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#E0E0E0",
     justifyContent: "center",
     alignItems: "center",
+  },
+  sendButtonActive: {
+    backgroundColor: "#2196F3",
+  },
+  scrollToBottomButton: {
     position: "absolute",
-    right: 0,
-    top: 0,
-    shadowColor: Colors.accent,
+    bottom: 180,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#2196F3",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  unreadText: {
-    color: Colors.inputBackground,
-    fontSize: 12,
-    fontWeight: "bold",
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });

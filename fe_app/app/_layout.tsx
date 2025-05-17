@@ -13,6 +13,7 @@ import useGlobal from "@/global";
 import WelcomeScreen from "@/app/WelcomeScreen";
 import { useRouter } from "expo-router";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -65,22 +66,24 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen
-          name="(tabs)/Profile"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="WelcomeScreen"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
+      <SafeAreaProvider style={{ flex: 1 }}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen
+            name="(tabs)/Profile"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="WelcomeScreen"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+        <StatusBar style="auto" />
+      </SafeAreaProvider>
     </ThemeProvider>
   );
 }

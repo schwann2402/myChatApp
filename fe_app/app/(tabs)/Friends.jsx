@@ -38,7 +38,7 @@ const FriendItem = ({ item }) => {
       onPress={() => {
         router.push({
           pathname: "/(tabs)/Chats",
-          params: { friend: JSON.stringify(item?.friend) },
+          params: { friend: JSON.stringify(item?.friend), id: item?.id },
         });
       }}
     >
@@ -87,8 +87,6 @@ export default function Friends() {
   const user = useGlobal((state) => state.user);
   const friendsList = useGlobal((state) => state.friendsList);
   const [refreshing, setRefreshing] = React.useState(false);
-
-  console.log("friendsList", friendsList);
 
   useEffect(() => {
     getFriends(user.username);

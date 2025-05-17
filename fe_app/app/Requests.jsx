@@ -2,10 +2,10 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   FlatList,
   TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import React, { useEffect } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import useGlobal from "@/global";
