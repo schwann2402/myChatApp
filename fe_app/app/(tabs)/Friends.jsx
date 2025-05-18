@@ -15,12 +15,15 @@ import { address } from "@/api";
 import { useRouter } from "expo-router";
 
 const FriendItem = ({ item }) => {
+  console.log("item", item);
   const { name, thumbnail, status } = item?.friend || {};
   const { preview, updated } = item;
   const router = useRouter();
   const formattedImageUrl = (url) => {
     return url ? `http://${address}${url}` : null;
   };
+
+  console.log("thumbnail on firned is ", thumbnail);
 
   const formatTime = (date) => {
     if (!date || date === null) return "";
@@ -110,7 +113,7 @@ export default function Friends() {
   return (
     <FlatList
       data={friendsList}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item) => item.name + item.id}
       renderItem={({ item }) => <FriendItem item={item} onPress={() => {}} />}
       ListHeaderComponent={renderHeader}
       ListEmptyComponent={EmptyState}

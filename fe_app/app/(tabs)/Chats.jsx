@@ -20,10 +20,14 @@ import { MaterialIcons } from "@expo/vector-icons";
 import utils from "@/utils";
 import { Colors } from "@/constants/Colors";
 import useGlobal from "@/global";
+import { address } from "@/api";
 
-const ChatBubble = ({ message, isLastMessage }) => {
-  const { text, sender, timestamp, status } = message;
-  const isMe = sender === "me";
+const ChatBubble = ({ message, thumbnail, isLastMessage }) => {
+  console.log("thumbnail", thumbnail);
+  const formattedImageUrl = (url) => {
+    return url ? `http://${address}${url}` : null;
+  };
+  const { text, created, is_me: isMe } = message;
   const bubbleStyle = isMe ? styles.bubbleRight : styles.bubbleLeft;
   const textStyle = isMe ? styles.textRight : styles.textLeft;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -46,11 +50,10 @@ const ChatBubble = ({ message, isLastMessage }) => {
     >
       {!isMe && (
         <View style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>
-            {message.senderName
-              ? message.senderName.charAt(0).toUpperCase()
-              : "?"}
-          </Text>
+          <Image
+            source={{ uri: formattedImageUrl(thumbnail) }}
+            style={styles.avatar}
+          />
         </View>
       )}
       <View style={[styles.bubble, bubbleStyle]}>
@@ -62,16 +65,16 @@ const ChatBubble = ({ message, isLastMessage }) => {
               isMe ? styles.timestampRight : styles.timestampLeft,
             ]}
           >
-            {new Date(timestamp).toLocaleTimeString([], {
+            {new Date(created).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
             })}
           </Text>
           {isMe && (
             <MaterialIcons
-              name={status === "sent" ? "check" : "done-all"}
+              name={isMe ? "check" : "done-all"}
               size={14}
-              color={status === "delivered" ? "#4CAF50" : "#8E8E8E"}
+              color={isMe ? "#4CAF50" : "#8E8E8E"}
               style={styles.statusIcon}
             />
           )}
@@ -103,13 +106,20 @@ const TypingIndicator = () => (
 const ChatScreen = ({ friend, connectionId }) => {
   const insets = useSafeAreaInsets();
   const { name, thumbnail, status } = friend;
-  const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showTypingIndicator, setShowTypingIndicator] = useState(false);
   const flatListRef = useRef(null);
   const inputRef = useRef(null);
   const messageSend = useGlobal((state) => state.messageSend);
+  const messagesList = useGlobal((state) => state.messagesList);
+  const retrieveMessageList = useGlobal((state) => state.retrieveMessageList);
+
+  useEffect(() => {
+    retrieveMessageList(connectionId);
+  }, [retrieveMessageList, connectionId]);
+
+  console.log("messagesList", messagesList);
 
   const handleSend = () => {
     console.log("inputText", inputText);
@@ -159,47 +169,15 @@ const ChatScreen = ({ friend, connectionId }) => {
     setIsTyping(false);
   };
 
-  useEffect(() => {
-    const initialMessages = [
-      {
-        id: 1,
-        text: "Hello! How are you doing today?",
-        sender: "other",
-        senderName: name,
-        timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-        status: "delivered",
-      },
-      {
-        id: 2,
-        text: "I'm good, thanks! Just working on this new project. How about you?",
-        sender: "me",
-        senderName: "You",
-        timestamp: new Date(Date.now() - 3540000).toISOString(), // 59 minutes ago
-        status: "delivered",
-      },
-      {
-        id: 3,
-        text: "That sounds exciting! I've been pretty busy too with work and family stuff.",
-        sender: "other",
-        senderName: name,
-        timestamp: new Date(Date.now() - 3480000).toISOString(), // 58 minutes ago
-        status: "delivered",
-      },
-      {
-        id: 4,
-        text: "Would you like to grab coffee sometime this week?",
-        sender: "me",
-        senderName: "You",
-        timestamp: new Date(Date.now() - 60000).toISOString(), // 1 minute ago
-        status: "delivered",
-      },
-    ];
-    setMessages(initialMessages);
-  }, [name]);
-
   const renderItem = ({ item, index }) => {
     const isLastMessage = index === 0;
-    return <ChatBubble message={item} isLastMessage={isLastMessage} />;
+    return (
+      <ChatBubble
+        message={item}
+        thumbnail={friend?.thumbnail}
+        isLastMessage={isLastMessage}
+      />
+    );
   };
 
   return (
@@ -213,11 +191,11 @@ const ChatScreen = ({ friend, connectionId }) => {
         keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
       >
         <FlatList
-          data={messages?.sort(
-            (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+          data={messagesList?.sort(
+            (a, b) => new Date(b.created) - new Date(a.created)
           )}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.created}
           inverted
           style={styles.messagesList}
           contentContainerStyle={styles.messagesContainer}
@@ -370,16 +348,21 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     justifyContent: "flex-end",
   },
+  avatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    position: "absolute",
+    left: -18,
+    bottom: -15,
+  },
   avatarContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#2196F3",
-    justifyContent: "center",
+    position: "relative",
+    display: "flex",
+    flexDirection: "row",
     alignItems: "center",
-    marginRight: 8,
-    alignSelf: "flex-end",
-    marginBottom: 4,
+    marginRight: 12,
+    marginLeft: 12,
   },
   avatarText: {
     color: "#FFFFFF",
@@ -387,7 +370,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   bubble: {
-    borderRadius: 18,
+    borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 5,
     maxWidth: "100%",

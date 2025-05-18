@@ -1,6 +1,6 @@
 from typing import override
 from rest_framework import serializers
-from .models import User, Connection
+from .models import Message, User, Connection
 from django.core.files.base import ContentFile
 import base64
 import os
@@ -106,3 +106,13 @@ class FriendSerializer(serializers.ModelSerializer):
 
     def get_preview(self, obj): 
         return 'You made a connection'
+
+class MessageSerializer(serializers.ModelSerializer):
+    is_me = serializers.SerializerMethodField()
+    
+    class Meta: 
+        model = Message
+        fields = ['id', 'text', 'created', 'is_me']
+        
+    def get_is_me(self, obj): 
+        return obj.user == self.context['user']

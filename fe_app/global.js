@@ -135,6 +135,46 @@ function responseRequestAccept(set, get, data) {
     }
   }
 }
+
+function responseMessageList(set, get, data) {
+  set((state) => ({
+    messagesList: [...get().messagesList, ...data?.data?.messages],
+    messagesUsername: data?.data?.friend?.username,
+  }));
+}
+
+function responseMessageSend(set, get, data) {
+  const username = data?.data?.friend?.username;
+
+  const friendLists = [...get().friendsList];
+
+  const friendIndex = friendLists.findIndex(
+    (item) => item.friend.username === username
+  );
+
+  if (friendIndex !== -1) {
+    const item = friendLists[friendIndex];
+    console.log("item in loop friend list", item);
+    item.preview = data?.data?.message?.text;
+    item.updated = data?.data?.message?.created;
+    console.log("item after update", item);
+    friendLists.splice(friendIndex, 1);
+    friendLists.unshift(item);
+  }
+
+  set((state) => ({
+    friendsList: friendLists,
+  }));
+
+  if (username !== get().messagesUsername) {
+    return;
+  }
+
+  set((state) => ({
+    messagesList: [...get().messagesList, data?.data?.message],
+  }));
+}
+
 const useGlobal = create((set, get) => ({
   // initialization...
   initialized: false,
@@ -379,6 +419,28 @@ const useGlobal = create((set, get) => ({
     );
   },
 
+  messagesList: [],
+  messagesUsername: null,
+
+  retrieveMessageList: (connectionId, page = 0) => {
+    const socket = get().socket;
+    if (!socket) return;
+
+    if (page === 0) {
+      set((state) => ({
+        messagesList: [],
+        messagesUsername: null,
+      }));
+    }
+
+    socket.send(
+      JSON.stringify({
+        source: "message.list",
+        connectionId: connectionId,
+      })
+    );
+  },
+
   // Socket
   socket: null,
   socketConnect: async () => {
@@ -415,6 +477,8 @@ const useGlobal = create((set, get) => ({
         search: responseSearch,
         "request.accept": responseRequestAccept,
         "friends.list": responseFriendsList,
+        "message.list": responseMessageList,
+        "message.send": responseMessageSend,
       };
 
       const resp = responses[data.source];

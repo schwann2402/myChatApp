@@ -84,22 +84,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="Notifications"
-        options={{
-          title: "Notifications",
-          headerTitle: "Notifications",
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons
-              name="notifications"
-              size={28}
-              color={color}
-              onPress={() => router.push("/Notifications")}
-            />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
         name="Chats"
         options={{
           title: "Chats",
